@@ -9,19 +9,24 @@ Date: 10/2/2021
 #include <string>
 #include <stdlib.h>
 #include <fstream>
+#include <cmath> //for linux
+#include <algorithm> //for linux
+#include <cstring> //for linux
 using namespace std;
 
-char* getAddress(char* li) {
+long long int getAddress(string li) {
 	
 	//get the address
-	char* startAddr = strchr(li, ' ') + 1;
+	char* line_c = const_cast<char*>(li.c_str());
+	char* startAddr = strchr(line_c, ' ') + 1;
 	char* endAddr = strchr(startAddr, '\0');
 	int addrSize = endAddr - startAddr;
 	char* addr = (char*)malloc(sizeof(int) * addrSize + 1);
 	memcpy(addr, startAddr, addrSize);
 	addr[addrSize] = '\0'; //null-terminate
 
-	return addr;
+	long long int address = (long long int)strtoll(addr, NULL, 16); //convert hex to int
+	return address;
 }
 bool extract(long long int addr, int numsets, int bsize, long long int *t, long long int* ind, long long int* off) {
 	//tag, index, and offset are returned
@@ -48,7 +53,7 @@ int main(int argc, char* argv[]) {
 	int blocksize = 64; //the size of a single cache block in bytes
 	string repl = "l"; //the replacement policy
 	int numSets = nk * pow(2, 10) / (assoc * blocksize);
-	int totalMiss = 0; int totalAccess = 0;
+	long int totalMiss = 0; long int totalAccess = 0;
 	int readMiss = 0; int totalRead = 0;
 	int writeMiss = 0; int totalWrite = 0;
 	long long int* cache = new long long int[numSets * assoc]; //Cache 2d array
@@ -74,49 +79,61 @@ int main(int argc, char* argv[]) {
 	while (getline(file, line)) {
 		//get the instruction
 		char inst = line[0]; //instruction (read or write)
-		char* line_c = const_cast<char*>(line.c_str());
-		char* addr_hex = getAddress(line_c);
-		long long int addr = (long long int)strtoll (addr_hex, NULL, 16); //convert hex to int
 		(inst == 'r') ? totalRead++ : totalWrite++;
+		long long int addr = getAddress(line);
 		//extract tag, index, offset
 		long long int tag, index, offset;
 		extract(addr, numSets, blocksize, &tag, &index, &offset);
 
-		//Check cache using LRU
-
-		//First check if the block is contained in the set or not
-		long long int* nextSetblock = cache + index * assoc + assoc;
-		long long int* existBlock = find(cache + index*assoc+ 0, nextSetblock, tag);
-		if (existBlock == nextSetblock) { //if miss: identical block not found
-			//increment miss
-			(inst == 'r') ? readMiss++ : writeMiss++;
-			//Allocate/replace block into cache
-			int* nextSetbit = lru[index] + assoc;
-			int* unused = find(lru[index], nextSetbit, 0); //find (recently)unused block
-			if (unused != nextSetbit) { //found unused bit
-				int dist = distance(lru[index], unused);
-				cache[index * assoc + dist] = tag; //replace
-				unused[0] = 1;
-				last_offset[index] = dist;
+		// Check cache
+		if (assoc == 1) { // direct mapping
+			if (cache[index] != tag) { // miss
+				(inst == 'r') ? readMiss++ : writeMiss++;
+				cache[index] = tag; // replace
 			}
-			else { //if all used
-				//reset used bits except most recent
-				fill(lru[index], lru[index] + assoc, 0);
-				lru[index][last_offset[index]] = 1;
-				//replace
-				cache[index * assoc + last_offset[index]] = tag;
-			}
-
 		}
-		else { //no miss
-			//do nothing
-			//printf("hello\n");
+		else { // fully or n-way set associativity
+
+			// Check if the block is in the set or not
+			long long int* nextSetblock = cache + index * assoc + assoc;
+			long long int* existBlock = find(cache + index * assoc + 0, nextSetblock, tag);
+			if (existBlock == nextSetblock) { // if miss
+				// Increment miss
+				(inst == 'r') ? readMiss++ : writeMiss++;
+				// Replace block
+				if (repl == "r") { // Random policy
+					int set_index = rand() % assoc;
+					cache[index * assoc + set_index] = tag;
+				}
+				else { // LRU policy
+					// Find (most-recent) unused block
+					int* nextSetbit = lru[index] + assoc;
+					int* unused = find(lru[index], nextSetbit, 0); 
+					if (unused != nextSetbit) { // found unused bit
+						int dist = distance(lru[index], unused);
+						cache[index * assoc + dist] = tag; // replace
+						unused[0] = 1;
+						last_offset[index] = dist;
+					}
+					else { // if all used
+						// Reset used bits except most-recent
+						fill(lru[index], lru[index] + assoc, 0);
+						lru[index][last_offset[index]] = 1;
+						// Replace
+						cache[index * assoc + last_offset[index]] = tag;
+					}
+				}
+			}
+			else { //hit
+				//do nothing
+			}
+
 		}
 
 	}
-
+	
 	totalMiss = readMiss + writeMiss;
 	totalAccess = totalRead + totalWrite;
-	printf("%d %f%%\t%d %f%%\t%d %f%%", totalMiss, (double(totalMiss) / totalAccess) * 100, readMiss, 100 * (double(readMiss) / totalRead), writeMiss, 100 * (double(writeMiss) / totalWrite));
+	printf("%ld %f%%\t%d %f%%\t%d %f%%\n", totalMiss, (double(totalMiss) / totalAccess) * 100, readMiss, 100 * (double(readMiss) / totalRead), writeMiss, 100 * (double(writeMiss) / totalWrite));
 	return 0;
 }
