@@ -63,7 +63,6 @@ int main(int argc, char* argv[]) {
 			lru[i][j] = 0;
 		}
 	}
-	int atest = lru[1][4];
 	//------------Get File--------------
 	string filename = "429.mcf-184B.trace.txt"; //file name
 	ifstream file(filename);
@@ -82,6 +81,7 @@ int main(int argc, char* argv[]) {
 		//extract tag, index, offset
 		long long int tag, index, offset;
 		extract(addr, numSets, blocksize, &tag, &index, &offset);
+
 		//Check cache using LRU
 
 		//First check if the block is contained in the set or not
@@ -110,6 +110,7 @@ int main(int argc, char* argv[]) {
 		}
 		else { //no miss
 			//do nothing
+			//printf("hello\n");
 		}
 
 	}
