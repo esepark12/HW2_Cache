@@ -143,8 +143,8 @@ int main(int argc, char* argv[]) {
 						//last_offset[index] = dist;
 					}
 					else {
-						printf("Error in %d: least-recent not found\n", __FUNCTION__);
-						return 0;
+						//printf("Error in %d: least-recent not found\n", __FUNCTION__);
+						//return 0;
 					}
 				}
 			}
