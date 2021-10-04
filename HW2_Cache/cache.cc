@@ -129,11 +129,12 @@ int main(int argc, char* argv[]) {
 						int dist = distance(valid + index * assoc + 0, existInvalid);
 						cache[index * assoc + dist] = tag; // replace
 						existInvalid[0] = 1; // update valid
-						continue; //move onto next instruction
 					}
-					// if no empty blocks, replace random
-					int set_index = rand() % assoc;
-					cache[index * assoc + set_index] = tag; // replace
+					else { // if no empty blocks
+						// Replace randomly
+						int set_index = rand() % assoc;
+						cache[index * assoc + set_index] = tag;
+					}
 				}
 				else { // use LRU policy
 					// First check for any invalid (empty) block
