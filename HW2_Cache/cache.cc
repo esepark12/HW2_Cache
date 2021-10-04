@@ -82,9 +82,6 @@ int main(int argc, char* argv[]) {
 	string filename = "429.mcf-184B.trace.txt";
 	ifstream file(filename);
 	//------------------Access Addresses-------------------
-	//int* last_offset = new int[assoc]; // used to check most-recent used block in each set
-	//memset(last_offset, -1, sizeof(int) * assoc);
-
 	string line;
 	while (getline(file, line)) {
 		// Get the instruction
@@ -117,8 +114,9 @@ int main(int argc, char* argv[]) {
 					int dist = distance(valid + index * assoc + 0, existInvalid);
 					cache[index * assoc + dist] = tag; // replace
 					existInvalid[0] = 1; // update valid
+					continue; // move onto next instruction
 				}
-				// If no empty block, replace block
+				// If no empty block, replace block using policy
 				if (repl == 'r') { // use Random policy
 					int set_index = rand() % assoc;
 					cache[index * assoc + set_index] = tag; // replace
@@ -129,7 +127,7 @@ int main(int argc, char* argv[]) {
 					int* least = find(lru[index], nextSetbit, 0);
 					if (least != nextSetbit) { // found least-recent
 						int dist = distance(lru[index], least);
-						cache[index * assoc + dist] = tag; // replace least-recent
+						cache[index * assoc + dist] = tag; // replace
 						// Update lru
 						//updateLRU(lru, dist, lruMax, index, assoc);
 						// set replaced block as most-recent and decrement others
@@ -140,7 +138,6 @@ int main(int argc, char* argv[]) {
 
 						}
 						lru[index][dist] = lruMost;
-						//last_offset[index] = dist;
 					}
 					else {
 						//printf("Error in %d: least-recent not found\n", __FUNCTION__);
