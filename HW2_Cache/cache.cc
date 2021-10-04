@@ -9,9 +9,10 @@ Date: 10/2/2021
 #include <string>
 #include <stdlib.h>
 #include <fstream>
-#include <cmath> //for linux
-#include <algorithm> //for linux
-#include <cstring> //for linux
+//for linux
+#include <cmath> 
+#include <algorithm>
+#include <cstring>
 using namespace std;
 
 long long int getAddress(string li) {
