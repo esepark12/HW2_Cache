@@ -15,6 +15,10 @@ Date: 10/2/2021
 #include <cstring>
 using namespace std;
 
+void updateLRU(int** lru, int* least, int max, int set, int numBlocks) {
+	// update lru
+
+}
 long long int getAddress(string li) {
 	/*
 	* Given an instruction line
@@ -64,7 +68,8 @@ int main(int argc, char* argv[]) {
 	memset(cache, -1, sizeof(long long int) * numSets * assoc); // initialize to -1
 	long long int* valid = new long long int[numSets * assoc]; // keeps track of valid and invalid blocks
 	memset(cache, 0, sizeof(long long int) * numSets * assoc);
-	int** lru = new int* [numSets]; // keeps track of frequently used/unused blocks in a cache
+	int** lru = new int* [numSets]; // keeps track of recently used blocks in a cache, 0: least recently used, lruMost: most recent
+	int lruMost = assoc - 1;
 	for (int i = 0; i < numSets; ++i) 
 		lru[i] = new int[assoc];
 	for (int i = 0; i < numSets; ++i) { // initialize to 0
@@ -77,8 +82,8 @@ int main(int argc, char* argv[]) {
 	string filename = "429.mcf-184B.trace.txt";
 	ifstream file(filename);
 	//------------------Access Addresses-------------------
-	int* last_offset = new int[assoc]; // used to check most-recent used block in each set
-	memset(last_offset, -1, sizeof(int) * assoc);
+	//int* last_offset = new int[assoc]; // used to check most-recent used block in each set
+	//memset(last_offset, -1, sizeof(int) * assoc);
 
 	string line;
 	while (getline(file, line)) {
@@ -102,47 +107,65 @@ int main(int argc, char* argv[]) {
 			}
 		}
 		else { // Fully or n-way set associativity
-			// First check for any invalid block
-			long long int* nextSetvalid = valid + index * assoc + assoc;
-			long long int* existInvalid = find(valid + index * assoc + 0, nextSetvalid, 0);
-			if (existInvalid != nextSetvalid) { // invalid exists
-				int dist = distance(valid + index * assoc + 0, existInvalid);
-				cache[index * assoc + dist] = tag; // replace
-				existInvalid[0] = 1; // update valid
+
+			// Check hit or miss
+			long long int* nextSetblock = cache + index * assoc + assoc;
+			long long int* existBlock = find(cache + index * assoc + 0, nextSetblock, tag);
+			if (existBlock == nextSetblock) { // if miss (tag don't match)
+				// Increment miss
+				(inst == 'r') ? readMiss++ : writeMiss++;
+				// First check for any invalid (empty) block
+				long long int* nextSetvalid = valid + index * assoc + assoc;
+				long long int* existInvalid = find(valid + index * assoc + 0, nextSetvalid, 0);
+				if (existInvalid != nextSetvalid) { // invalid exists
+					int dist = distance(valid + index * assoc + 0, existInvalid);
+					cache[index * assoc + dist] = tag; // replace
+					existInvalid[0] = 1; // update valid
+					continue;
+				}
+				// If no empty block, replace block
+				if (repl == 'r') { // use Random policy
+					int set_index = rand() % assoc;
+					cache[index * assoc + set_index] = tag; // replace
+				}
+				else { // use LRU policy
+					// Find least-recently used block & replace
+					int* nextSetbit = lru[index] + assoc;
+					int* least = find(lru[index], nextSetbit, 0);
+					if (least != nextSetbit) { // found least-recent
+						int dist = distance(lru[index], least);
+						cache[index * assoc + dist] = tag; // replace least-recent
+						// Update lru
+						//updateLRU(lru, least, lruMax, index, assoc);
+						// set replaced block as most-recent and decrement others
+						for (int i = 0; i < assoc; i++) {
+							if (lru[index][i] > 0) { // if not 0, decrement
+								lru[index][i] -= 1;
+							}
+
+						}
+						lru[index][dist] = lruMost;
+						//last_offset[index] = dist;
+					}
+					else { // if all used
+						// Reset used bits except most-recent
+						//fill(lru[index], lru[index] + assoc, 0);
+						//cache[index * assoc + last_offset[index]] = tag; // replace
+						//lru[index][last_offset[index]] = 1;
+					}
+				}
 			}
-			else { // if valid
-				// Check hit or miss
-				long long int* nextSetblock = cache + index * assoc + assoc;
-				long long int* existBlock = find(cache + index * assoc + 0, nextSetblock, tag);
-				if (existBlock == nextSetblock) { // if miss (tag don't match)
-					// Increment miss
-					(inst == 'r') ? readMiss++ : writeMiss++;
-					// Replace block
-					if (repl == 'r') { // use Random policy
-						int set_index = rand() % assoc;
-						cache[index * assoc + set_index] = tag; // replace
-					}
-					else { // use LRU policy
-						// Find (most-recent) unused block & replace
-						int* nextSetbit = lru[index] + assoc;
-						int* unused = find(lru[index], nextSetbit, 0);
-						if (unused != nextSetbit) { // found unused bit
-							int dist = distance(lru[index], unused);
-							cache[index * assoc + dist] = tag; // replace
-							unused[0] = 1; // update lru
-							last_offset[index] = dist;
-						}
-						else { // if all used
-							// Reset used bits except most-recent
-							fill(lru[index], lru[index] + assoc, 0);
-							cache[index * assoc + last_offset[index]] = tag; // replace
-							lru[index][last_offset[index]] = 1;
-						}
+			else { // hit
+				int dist = distance(cache + index * assoc + 0, existBlock);
+				// Update lru
+				//updateLRU(lru, least, lruMax, index, assoc);
+				// set hit block as most-recent and decrement others
+				for (int i = 0; i < assoc; i++) {
+					if (lru[index][i] > 0) { // if not 0, decrement
+						lru[index][i] -= 1;
 					}
 				}
-				else { // hit
-					// do nothing
-				}
+				lru[index][dist] = lruMost;
 			}
 		}
 
