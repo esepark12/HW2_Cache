@@ -20,9 +20,10 @@ void updateLRU(int** lruArr, int d, int most, int set, int numBlocks) {
 	* Updates LRU when hit/miss occurs
 	*/
 	if (lruArr[set][d] == most) { // if hit/miss occurs on most-recent block
-	// do nothing
+		// do nothing
 	}
-	else { // set hit block as most-recent and decrement others
+	else { 
+		// set hit block as most-recent and decrement others
 		for (int i = 0; i < numBlocks; i++) {
 			if (lruArr[set][i] > 0) { // if not 0, decrement
 				lruArr[set][i] -= 1;
