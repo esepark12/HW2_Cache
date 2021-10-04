@@ -15,7 +15,7 @@ Date: 10/2/2021
 #include <cstring>
 using namespace std;
 
-void updateLRU(int** lru, int* least, int max, int set, int numBlocks) {
+void updateLRU(int** l, int d, int max, int set, int numBlocks) {
 	// update lru
 
 }
@@ -69,15 +69,15 @@ int main(int argc, char* argv[]) {
 	long long int* valid = new long long int[numSets * assoc]; // keeps track of valid and invalid blocks
 	memset(cache, 0, sizeof(long long int) * numSets * assoc);
 	int** lru = new int* [numSets]; // keeps track of recently used blocks in a cache, 0: least recently used, lruMost: most recent
-	int lruMost = assoc - 1;
-	for (int i = 0; i < numSets; ++i) 
+	for (int i = 0; i < numSets; ++i) {
 		lru[i] = new int[assoc];
+	}
 	for (int i = 0; i < numSets; ++i) { // initialize to 0
 		for (int j = 0; j < assoc; ++j) {
 			lru[i][j] = 0;
 		}
 	}
-
+	int lruMost = assoc - 1;
 	//------------Get File--------------
 	string filename = "429.mcf-184B.trace.txt";
 	ifstream file(filename);
@@ -97,11 +97,7 @@ int main(int argc, char* argv[]) {
 
 		// Check if block is in the cache
 		if (assoc == 1) { // Direct mapping
-			if (valid[index] == 0) { // invalid
-				cache[index] = tag; // replace
-				valid[index] = 1;
-			}
-			else if (cache[index] != tag) { // miss
+			if (cache[index] != tag) { // miss
 				(inst == 'r') ? readMiss++ : writeMiss++;
 				cache[index] = tag; // replace
 			}
@@ -121,7 +117,6 @@ int main(int argc, char* argv[]) {
 					int dist = distance(valid + index * assoc + 0, existInvalid);
 					cache[index * assoc + dist] = tag; // replace
 					existInvalid[0] = 1; // update valid
-					continue;
 				}
 				// If no empty block, replace block
 				if (repl == 'r') { // use Random policy
@@ -136,7 +131,7 @@ int main(int argc, char* argv[]) {
 						int dist = distance(lru[index], least);
 						cache[index * assoc + dist] = tag; // replace least-recent
 						// Update lru
-						//updateLRU(lru, least, lruMax, index, assoc);
+						//updateLRU(lru, dist, lruMax, index, assoc);
 						// set replaced block as most-recent and decrement others
 						for (int i = 0; i < assoc; i++) {
 							if (lru[index][i] > 0) { // if not 0, decrement
@@ -147,11 +142,9 @@ int main(int argc, char* argv[]) {
 						lru[index][dist] = lruMost;
 						//last_offset[index] = dist;
 					}
-					else { // if all used
-						// Reset used bits except most-recent
-						//fill(lru[index], lru[index] + assoc, 0);
-						//cache[index * assoc + last_offset[index]] = tag; // replace
-						//lru[index][last_offset[index]] = 1;
+					else {
+						printf("Error in %d: least-recent not found\n", __FUNCTION__);
+						return 0;
 					}
 				}
 			}
