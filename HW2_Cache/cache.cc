@@ -16,26 +16,33 @@ Date: 10/2/2021
 using namespace std;
 
 long long int getAddress(string li) {
-	
-	//get the address
+	/*
+	* Given an instruction line
+	* Returns address in type long long int
+	*/
+
 	char* line_c = const_cast<char*>(li.c_str());
 	char* startAddr = strchr(line_c, ' ') + 1;
 	char* endAddr = strchr(startAddr, '\0');
 	int addrSize = endAddr - startAddr;
 	char* addr = (char*)malloc(sizeof(int) * addrSize + 1);
 	memcpy(addr, startAddr, addrSize);
-	addr[addrSize] = '\0'; //null-terminate
+	addr[addrSize] = '\0'; // null-terminate
+	long long int address = (long long int)strtoll(addr, NULL, 16); // convert hex to int
 
-	long long int address = (long long int)strtoll(addr, NULL, 16); //convert hex to int
 	return address;
 }
 bool extract(long long int addr, int numsets, int bsize, long long int *t, long long int* ind, long long int* off) {
-	//tag, index, and offset are returned
+	/*
+	* Given an address, num of sets, block size
+	* Returns tag, index, offset of a block
+	*/
+
 	int addrSize = 64; //64 bit addr (fixed)
 	int indLen = log2(numsets);
 	int offLen = log2(bsize);
-	int tagLen = addrSize - indLen - offLen; //address is 64 bit
-	*t = addr >> (addrSize - tagLen); //shift bits
+	int tagLen = addrSize - indLen - offLen;
+	*t = addr >> (addrSize - tagLen); //addr in mem
 	*ind = (addr >> offLen) - (*t << indLen); //a set index
 	*off = addr - ((addr >> offLen) << offLen); //a block index in a set
 
@@ -43,53 +50,51 @@ bool extract(long long int addr, int numsets, int bsize, long long int *t, long 
 }
 int main(int argc, char* argv[]) {
 	
-	int nk = atoi(argv[1]); //the capacity of the cache in kilobytes
-	int assoc = atoi(argv[2]); //the associativity of the cache
-	int blocksize = atoi(argv[3]); //the size of a single cache block in bytes
-	char repl = argv[4][0]; //the replacement policy
+	int nk = atoi(argv[1]); // the capacity of the cache in kilobytes
+	int assoc = atoi(argv[2]); // the associativity of the cache
+	int blocksize = atoi(argv[3]); // the size of a single cache block in bytes
+	char repl = argv[4][0]; // the replacement policy
 	
 	//------------Initialize cache variables----------
-	int numSets = nk * pow(2, 10) / (assoc * blocksize);
 	long int totalMiss = 0; long int totalAccess = 0;
 	int readMiss = 0; int totalRead = 0;
 	int writeMiss = 0; int totalWrite = 0;
-	long long int* cache = new long long int[numSets * assoc]; //Cache 2d array
-	memset(cache, -1, sizeof(long long int) * numSets * assoc); //initialize to -1
-	//int* lru = new int[numSets * assoc]; //keeps track of used/unused blocks
-	//memset(lru, 0, sizeof(int) * numSets * assoc); //initialize to 0
-	int** lru = new int* [numSets];
-	for (int i = 0; i < numSets; ++i) //initialize to 0
+	int numSets = nk * pow(2, 10) / (assoc * blocksize);
+	long long int* cache = new long long int[numSets * assoc]; // Cache 2d array
+	memset(cache, -1, sizeof(long long int) * numSets * assoc); // initialize to -1
+	int** lru = new int* [numSets]; // keeps track of frequently used/unused blocks in a cache
+	for (int i = 0; i < numSets; ++i) 
 		lru[i] = new int[assoc];
-	for (int i = 0; i < numSets; ++i) {
+	for (int i = 0; i < numSets; ++i) { // initialize to 0
 		for (int j = 0; j < assoc; ++j) {
 			lru[i][j] = 0;
 		}
 	}
 	//------------Get File--------------
-	string filename = "429.mcf-184B.trace.txt"; //file name
+	string filename = "429.mcf-184B.trace.txt";
 	ifstream file(filename);
 	//------------------Access Addresses-------------------
-	int* last_offset = new int[assoc]; //used to check recently-used block in each set
+	int* last_offset = new int[assoc]; // used to check most-recent used block in each set
 	memset(last_offset, -1, sizeof(int) * assoc);
 
 	string line;
 	while (getline(file, line)) {
-		//get the instruction
-		char inst = line[0]; //instruction (read or write)
+		// Get the instruction
+		char inst = line[0]; // instruction (read or write)
 		(inst == 'r') ? totalRead++ : totalWrite++;
 		long long int addr = getAddress(line);
-		//extract tag, index, offset
+		// Get tag, index, offset
 		long long int tag, index, offset;
 		extract(addr, numSets, blocksize, &tag, &index, &offset);
 
 		// Check cache
-		if (assoc == 1) { // direct mapping
+		if (assoc == 1) { // Direct mapping
 			if (cache[index] != tag) { // miss
 				(inst == 'r') ? readMiss++ : writeMiss++;
 				cache[index] = tag; // replace
 			}
 		}
-		else { // fully or n-way set associativity
+		else { // Fully or n-way set associativity
 
 			// Check if the block is in the set or not
 			long long int* nextSetblock = cache + index * assoc + assoc;
@@ -100,7 +105,7 @@ int main(int argc, char* argv[]) {
 				// Replace block
 				if (repl == 'r') { // Random policy
 					int set_index = rand() % assoc;
-					cache[index * assoc + set_index] = tag;
+					cache[index * assoc + set_index] = tag; // replace
 				}
 				else { // LRU policy
 					// Find (most-recent) unused block
@@ -109,19 +114,18 @@ int main(int argc, char* argv[]) {
 					if (unused != nextSetbit) { // found unused bit
 						int dist = distance(lru[index], unused);
 						cache[index * assoc + dist] = tag; // replace
-						unused[0] = 1;
+						unused[0] = 1; // update lru
 						last_offset[index] = dist;
 					}
 					else { // if all used
 						// Reset used bits except most-recent
 						fill(lru[index], lru[index] + assoc, 0);
+						cache[index * assoc + last_offset[index]] = tag; // replace
 						lru[index][last_offset[index]] = 1;
-						// Replace
-						cache[index * assoc + last_offset[index]] = tag;
 					}
 				}
 			}
-			else { //hit
+			else { // hit
 				//do nothing
 			}
 
