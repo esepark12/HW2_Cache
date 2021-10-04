@@ -42,17 +42,19 @@ bool extract(long long int addr, int numsets, int bsize, long long int *t, long 
 	return 0;
 }
 int main(int argc, char* argv[]) {
-	/*
+	
 	int nk = atoi(argv[1]); //the capacity of the cache in kilobytes
 	int assoc = atoi(argv[2]); //the associativity of the cache
 	int blocksize = atoi(argv[3]); //the size of a single cache block in bytes
-	char* repl = argv[4]; //the replacement policy
-	*/
+	char repl = argv[4][0]; //the replacement policy
+	
 	//------------Initialize cache variables----------
+	/*
 	int nk = 2048; //the capacity of the cache in kilobytes
 	int assoc = 64; //the associativity of the cache (number of blocks in a set)
 	int blocksize = 64; //the size of a single cache block in bytes
-	string repl = "l"; //the replacement policy
+	string repl = "r"; //the replacement policy
+	*/
 	int numSets = nk * pow(2, 10) / (assoc * blocksize);
 	long int totalMiss = 0; long int totalAccess = 0;
 	int readMiss = 0; int totalRead = 0;
@@ -102,7 +104,7 @@ int main(int argc, char* argv[]) {
 				// Increment miss
 				(inst == 'r') ? readMiss++ : writeMiss++;
 				// Replace block
-				if (repl == "r") { // Random policy
+				if (repl == 'r') { // Random policy
 					int set_index = rand() % assoc;
 					cache[index * assoc + set_index] = tag;
 				}
