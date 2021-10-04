@@ -15,21 +15,21 @@ Date: 10/2/2021
 #include <cstring>
 using namespace std;
 
-void updateLRU(int** lruArr, int d, int most, int set, int numBlocks) {
+void updateLRU(int** lruArr, int replaced, int most, int set, int numBlocks) {
 	/*
 	* Updates LRU when hit/miss occurs
 	*/
-	if (lruArr[set][d] == most) { // if hit/miss occurs on most-recent block
+	if (lruArr[set][replaced] == most) { // if hit/miss occurs on most-recent block
 		// do nothing
 	}
 	else { 
-		// set hit block as most-recent and decrement others
+		// set hit/miss block as most-recent and decrement others
 		for (int i = 0; i < numBlocks; i++) {
 			if (lruArr[set][i] > 0) { // if not 0, decrement
 				lruArr[set][i] -= 1;
 			}
 		}
-		lruArr[set][d] = most;
+		lruArr[set][replaced] = most;
 	}
 }
 long long int getAddress(string li) {
