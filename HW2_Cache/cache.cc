@@ -62,6 +62,8 @@ int main(int argc, char* argv[]) {
 	int numSets = nk * pow(2, 10) / (assoc * blocksize);
 	long long int* cache = new long long int[numSets * assoc]; // Cache 2d array
 	memset(cache, -1, sizeof(long long int) * numSets * assoc); // initialize to -1
+	long long int* valid = new long long int[numSets * assoc]; // keeps track of valid and invalid blocks
+	memset(cache, 0, sizeof(long long int) * numSets * assoc);
 	int** lru = new int* [numSets]; // keeps track of frequently used/unused blocks in a cache
 	for (int i = 0; i < numSets; ++i) 
 		lru[i] = new int[assoc];
@@ -70,6 +72,7 @@ int main(int argc, char* argv[]) {
 			lru[i][j] = 0;
 		}
 	}
+
 	//------------Get File--------------
 	string filename = "429.mcf-184B.trace.txt";
 	ifstream file(filename);
@@ -87,48 +90,60 @@ int main(int argc, char* argv[]) {
 		long long int tag, index, offset;
 		extract(addr, numSets, blocksize, &tag, &index, &offset);
 
-		// Check cache
+		// Check if block is in the cache
 		if (assoc == 1) { // Direct mapping
-			if (cache[index] != tag) { // miss
+			if (valid[index] == 0) { // invalid
+				cache[index] = tag; // replace
+				valid[index] = 1;
+			}
+			else if (cache[index] != tag) { // miss
 				(inst == 'r') ? readMiss++ : writeMiss++;
 				cache[index] = tag; // replace
 			}
 		}
 		else { // Fully or n-way set associativity
-
-			// Check if the block is in the set or not
-			long long int* nextSetblock = cache + index * assoc + assoc;
-			long long int* existBlock = find(cache + index * assoc + 0, nextSetblock, tag);
-			if (existBlock == nextSetblock) { // if miss
-				// Increment miss
-				(inst == 'r') ? readMiss++ : writeMiss++;
-				// Replace block
-				if (repl == 'r') { // Random policy
-					int set_index = rand() % assoc;
-					cache[index * assoc + set_index] = tag; // replace
+			// First check for any invalid block
+			long long int* nextSetvalid = valid + index * assoc + assoc;
+			long long int* existInvalid = find(valid + index * assoc + 0, nextSetvalid, 0);
+			if (existInvalid != nextSetvalid) { // invalid exists
+				int dist = distance(valid + index * assoc + 0, existInvalid);
+				cache[index * assoc + dist] = tag; // replace
+				existInvalid[0] = 1; // update valid
+			}
+			else { // if valid
+				// Check hit or miss
+				long long int* nextSetblock = cache + index * assoc + assoc;
+				long long int* existBlock = find(cache + index * assoc + 0, nextSetblock, tag);
+				if (existBlock == nextSetblock) { // if miss (tag don't match)
+					// Increment miss
+					(inst == 'r') ? readMiss++ : writeMiss++;
+					// Replace block
+					if (repl == 'r') { // use Random policy
+						int set_index = rand() % assoc;
+						cache[index * assoc + set_index] = tag; // replace
+					}
+					else { // use LRU policy
+						// Find (most-recent) unused block & replace
+						int* nextSetbit = lru[index] + assoc;
+						int* unused = find(lru[index], nextSetbit, 0);
+						if (unused != nextSetbit) { // found unused bit
+							int dist = distance(lru[index], unused);
+							cache[index * assoc + dist] = tag; // replace
+							unused[0] = 1; // update lru
+							last_offset[index] = dist;
+						}
+						else { // if all used
+							// Reset used bits except most-recent
+							fill(lru[index], lru[index] + assoc, 0);
+							cache[index * assoc + last_offset[index]] = tag; // replace
+							lru[index][last_offset[index]] = 1;
+						}
+					}
 				}
-				else { // LRU policy
-					// Find (most-recent) unused block
-					int* nextSetbit = lru[index] + assoc;
-					int* unused = find(lru[index], nextSetbit, 0); 
-					if (unused != nextSetbit) { // found unused bit
-						int dist = distance(lru[index], unused);
-						cache[index * assoc + dist] = tag; // replace
-						unused[0] = 1; // update lru
-						last_offset[index] = dist;
-					}
-					else { // if all used
-						// Reset used bits except most-recent
-						fill(lru[index], lru[index] + assoc, 0);
-						cache[index * assoc + last_offset[index]] = tag; // replace
-						lru[index][last_offset[index]] = 1;
-					}
+				else { // hit
+					// do nothing
 				}
 			}
-			else { // hit
-				//do nothing
-			}
-
 		}
 
 	}
@@ -136,5 +151,6 @@ int main(int argc, char* argv[]) {
 	totalMiss = readMiss + writeMiss;
 	totalAccess = totalRead + totalWrite;
 	printf("%ld %f%%\t%d %f%%\t%d %f%%\n", totalMiss, (double(totalMiss) / totalAccess) * 100, readMiss, 100 * (double(readMiss) / totalRead), writeMiss, 100 * (double(writeMiss) / totalWrite));
+	
 	return 0;
 }
