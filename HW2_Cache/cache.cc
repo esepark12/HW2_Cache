@@ -49,12 +49,6 @@ int main(int argc, char* argv[]) {
 	char repl = argv[4][0]; //the replacement policy
 	
 	//------------Initialize cache variables----------
-	/*
-	int nk = 2048; //the capacity of the cache in kilobytes
-	int assoc = 64; //the associativity of the cache (number of blocks in a set)
-	int blocksize = 64; //the size of a single cache block in bytes
-	string repl = "r"; //the replacement policy
-	*/
 	int numSets = nk * pow(2, 10) / (assoc * blocksize);
 	long int totalMiss = 0; long int totalAccess = 0;
 	int readMiss = 0; int totalRead = 0;
