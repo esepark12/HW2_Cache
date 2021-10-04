@@ -15,9 +15,21 @@ Date: 10/2/2021
 #include <cstring>
 using namespace std;
 
-void updateLRU(int** l, int d, int max, int set, int numBlocks) {
-	// update lru
-
+void updateLRU(int** lruArr, int d, int most, int set, int numBlocks) {
+	/*
+	* Updates LRU when hit/miss occurs
+	*/
+	if (lruArr[set][d] == most) { // if hit/miss occurs on most-recent block
+	// do nothing
+	}
+	else { // set hit block as most-recent and decrement others
+		for (int i = 0; i < numBlocks; i++) {
+			if (lruArr[set][i] > 0) { // if not 0, decrement
+				lruArr[set][i] -= 1;
+			}
+		}
+		lruArr[set][d] = most;
+	}
 }
 long long int getAddress(string li) {
 	/*
@@ -129,15 +141,7 @@ int main(int argc, char* argv[]) {
 						int dist = distance(lru[index], least);
 						cache[index * assoc + dist] = tag; // replace
 						// Update lru
-						//updateLRU(lru, dist, lruMax, index, assoc);
-						// set replaced block as most-recent and decrement others
-						for (int i = 0; i < assoc; i++) {
-							if (lru[index][i] > 0) { // if not 0, decrement
-								lru[index][i] -= 1;
-							}
-
-						}
-						lru[index][dist] = lruMost;
+						updateLRU(lru, dist, lruMost, index, assoc);
 					}
 					else {
 						//printf("Error in %d: least-recent not found\n", __FUNCTION__);
@@ -148,14 +152,7 @@ int main(int argc, char* argv[]) {
 			else { // hit
 				int dist = distance(cache + index * assoc + 0, existBlock);
 				// Update lru
-				//updateLRU(lru, least, lruMax, index, assoc);
-				// set hit block as most-recent and decrement others
-				for (int i = 0; i < assoc; i++) {
-					if (lru[index][i] > 0) { // if not 0, decrement
-						lru[index][i] -= 1;
-					}
-				}
-				lru[index][dist] = lruMost;
+				updateLRU(lru, dist, lruMost, index, assoc);
 			}
 		}
 
