@@ -8,49 +8,30 @@ Date: 10/2/2021
 #include <stdio.h>
 #include <string>
 #include <stdlib.h>
-#include <Windows.h>
+#include <fstream>
 using namespace std;
 
-char* getInstruction(char* buf) {
-	//get the instruction
-	char* startAddr = strchr(buf, ' ') + 1;
-	char* endAddr = strstr(startAddr, "\n");
+char* getAddress(char* li) {
+	
+	//get the address
+	char* startAddr = strchr(li, ' ') + 1;
+	char* endAddr = strchr(startAddr, '\0');
 	int addrSize = endAddr - startAddr;
 	char* addr = (char*)malloc(sizeof(int) * addrSize + 1);
 	memcpy(addr, startAddr, addrSize);
 	addr[addrSize] = '\0'; //null-terminate
-	//string addrStr(addr);
 
 	return addr;
 }
-char* readFile(string f) {
-	wchar_t fname[sizeof(f)];
-	mbstowcs(fname, f.c_str(), strlen(f.c_str()) + 1);
-	LPWSTR filename = fname;
-	HANDLE file = CreateFile(filename, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
-		FILE_ATTRIBUTE_NORMAL, NULL);
-	if (file == INVALID_HANDLE_VALUE) { //catch CreateFile error
-		printf("Error in %s: %d\n", __FUNCTION__, GetLastError());
-		return 0;
-	}
-	// get file size
-	LARGE_INTEGER li;
-	BOOL bRet = GetFileSizeEx(file, &li);
-	// read file into a buffer
-	int fileSize = (DWORD)li.QuadPart;	// assumes file size is below 2GB; otherwise, an __int64 is needed
-	DWORD bytesRead;
-	char* fileBuf = new char[fileSize];
-	bRet = ReadFile(file, fileBuf, fileSize, &bytesRead, NULL);
-	if (bRet == 0 || bytesRead != fileSize) {
-		printf("Error in %s: %d\n", __FUNCTION__, GetLastError());
-		return 0;
-	}
-	fileBuf[fileSize] = '\0'; //null-terminate to use strstr, strchr
-	return fileBuf;
-}
-bool extract(char* address, int* t, int* ind, int* off) {
+bool extract(long long int addr, int numsets, int bsize, long long int *t, long long int* ind, long long int* off) {
 	//tag, index, and offset are returned
-
+	int addrSize = 64; //64 bit addr (fixed)
+	int indLen = log2(numsets);
+	int offLen = log2(bsize);
+	int tagLen = addrSize - indLen - offLen; //address is 64 bit
+	*t = addr >> (addrSize - tagLen); //shift bits
+	*ind = (addr >> offLen) - (*t << indLen); //a set index
+	*off = addr - ((addr >> offLen) << offLen); //a block index in a set
 
 	return 0;
 }
@@ -70,8 +51,8 @@ int main(int argc, char* argv[]) {
 	int totalMiss = 0; int totalAccess = 0;
 	int readMiss = 0; int totalRead = 0;
 	int writeMiss = 0; int totalWrite = 0;
-	int* cache = new int[numSets * assoc]; //Cache 2d array
-	memset(cache, -1, sizeof(int) * numSets * assoc); //initialize to -1
+	long long int* cache = new long long int[numSets * assoc]; //Cache 2d array
+	memset(cache, -1, sizeof(long long int) * numSets * assoc); //initialize to -1
 	//int* lru = new int[numSets * assoc]; //keeps track of used/unused blocks
 	//memset(lru, 0, sizeof(int) * numSets * assoc); //initialize to 0
 	int** lru = new int* [numSets];
@@ -83,38 +64,29 @@ int main(int argc, char* argv[]) {
 		}
 	}
 	int atest = lru[1][4];
-	//------------Read File--------------
+	//------------Get File--------------
 	string filename = "429.mcf-184B.trace.txt"; //file name
-	char* fileBuf = readFile(filename);
+	ifstream file(filename);
 	//------------------Access Addresses-------------------
-	// loop here later
-	int* last_offset = new int[assoc];
+	int* last_offset = new int[assoc]; //used to check recently-used block in each set
 	memset(last_offset, -1, sizeof(int) * assoc);
-	while (true) {
-		char* curPos = strstr(fileBuf, "\n");
-		if (curPos == NULL) { //eof
-			break;
-		}
+
+	string line;
+	while (getline(file, line)) {
 		//get the instruction
-		char inst = fileBuf[0]; //instruction (read or write)
-		char* addr_hex = getInstruction(fileBuf);
-		long long int addr = (int)strtol(addr_hex, NULL, 16); //convert hex to int
+		char inst = line[0]; //instruction (read or write)
+		char* line_c = const_cast<char*>(line.c_str());
+		char* addr_hex = getAddress(line_c);
+		long long int addr = (long long int)strtoll (addr_hex, NULL, 16); //convert hex to int
 		(inst == 'r') ? totalRead++ : totalWrite++;
 		//extract tag, index, offset
-		int addrSize = 64; //64 bit addr (fixed)
-		int indLen = log2(numSets);
-		int offLen = log2(blocksize);
-		int tagLen = addrSize - indLen - offLen; //address is 64 bit
-		int tag = addr >> (addrSize - tagLen); //shift bits
-		int index = (addr >> offLen) - (tag << indLen); //a set index
-		int offset = addr - ((addr >> offLen) << offLen); //a block index in a set
-
+		long long int tag, index, offset;
+		extract(addr, numSets, blocksize, &tag, &index, &offset);
 		//Check cache using LRU
-		int used = lru[index][offset];
 
 		//First check if the block is contained in the set or not
-		int* nextSetblock = cache + index * assoc + assoc;
-		int* existBlock = find(cache + index*assoc+ 0, nextSetblock, tag);
+		long long int* nextSetblock = cache + index * assoc + assoc;
+		long long int* existBlock = find(cache + index*assoc+ 0, nextSetblock, tag);
 		if (existBlock == nextSetblock) { //if miss: identical block not found
 			//increment miss
 			(inst == 'r') ? readMiss++ : writeMiss++;
@@ -126,11 +98,8 @@ int main(int argc, char* argv[]) {
 				cache[index * assoc + dist] = tag; //replace
 				unused[0] = 1;
 				last_offset[index] = dist;
-				//int a2check = lru[index][63]; //test
-				//int a3check = cache[index * assoc + 63]; //test
-				//printf("test"); //test
 			}
-			else { //if all used, reset except last used & replace
+			else { //if all used
 				//reset used bits except most recent
 				fill(lru[index], lru[index] + assoc, 0);
 				lru[index][last_offset[index]] = 1;
@@ -143,11 +112,6 @@ int main(int argc, char* argv[]) {
 			//do nothing
 		}
 
-
-
-		//search if data
-		//update pointer
-		fileBuf = strstr(fileBuf, "\n") + 1;
 	}
 
 	totalMiss = readMiss + writeMiss;
