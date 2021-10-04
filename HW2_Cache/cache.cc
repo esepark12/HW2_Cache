@@ -119,33 +119,46 @@ int main(int argc, char* argv[]) {
 			if (existBlock == nextSetblock) { // if miss (tag don't match)
 				// Increment miss
 				(inst == 'r') ? readMiss++ : writeMiss++;
-				// First check for any invalid (empty) block
-				long long int* nextSetvalid = valid + index * assoc + assoc;
-				long long int* existInvalid = find(valid + index * assoc + 0, nextSetvalid, 0);
-				if (existInvalid != nextSetvalid) { // invalid exists
-					int dist = distance(valid + index * assoc + 0, existInvalid);
-					cache[index * assoc + dist] = tag; // replace
-					existInvalid[0] = 1; // update valid
-					continue; // move onto next instruction
-				}
-				// If no empty block, replace block using policy
+				// Replace block using policy
 				if (repl == 'r') { // use Random policy
+					// First check for any invalid (empty) block
+					long long int* nextSetvalid = valid + index * assoc + assoc;
+					long long int* existInvalid = find(valid + index * assoc + 0, nextSetvalid, 0);
+					if (existInvalid != nextSetvalid) { // invalid exists
+						int dist = distance(valid + index * assoc + 0, existInvalid);
+						cache[index * assoc + dist] = tag; // replace
+						existInvalid[0] = 1; // update valid
+						continue; //move onto next instruction
+					}
+					// if no empty blocks, replace random
 					int set_index = rand() % assoc;
 					cache[index * assoc + set_index] = tag; // replace
 				}
 				else { // use LRU policy
-					// Find least-recently used block & replace
-					int* nextSetbit = lru[index] + assoc;
-					int* least = find(lru[index], nextSetbit, 0);
-					if (least != nextSetbit) { // found least-recent
-						int dist = distance(lru[index], least);
+					// First check for any invalid (empty) block
+					long long int* nextSetvalid = valid + index * assoc + assoc;
+					long long int* existInvalid = find(valid + index * assoc + 0, nextSetvalid, 0);
+					if (existInvalid != nextSetvalid) {
+						int dist = distance(valid + index * assoc + 0, existInvalid);
 						cache[index * assoc + dist] = tag; // replace
+						existInvalid[0] = 1;
 						// Update lru
 						updateLRU(lru, dist, lruMost, index, assoc);
 					}
 					else {
-						//printf("Error in %d: least-recent not found\n", __FUNCTION__);
-						//return 0;
+						// Find least-recently used block & replace
+						int* nextSetbit = lru[index] + assoc;
+						int* least = find(lru[index], nextSetbit, 0);
+						if (least != nextSetbit) { // found least-recent
+							int dist = distance(lru[index], least);
+							cache[index * assoc + dist] = tag; // replace
+							// Update lru
+							updateLRU(lru, dist, lruMost, index, assoc);
+						}
+						else {
+							//printf("Error in %d: least-recent not found\n", __FUNCTION__);
+							//return 0;
+						}
 					}
 				}
 			}
