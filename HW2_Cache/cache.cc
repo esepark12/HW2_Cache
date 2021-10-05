@@ -23,12 +23,13 @@ void updateLRU(int** lruArr, int replaced, int most, int set, int numBlocks) {
 		// do nothing
 	}
 	else {
-		// set hit/miss block as most-recent and decrement others
+		// update lru
 		for (int i = 0; i < numBlocks; i++) {
-			if (lruArr[set][i] > 0) { // if not 0 or less, decrement
-				lruArr[set][i] -= 1;
+			if (lruArr[set][i] > lruArr[set][replaced]) { // if greater than hit/miss lru rank
+				lruArr[set][i] -= 1; //decrement
 			}
 		}
+		// set hit/miss block as most-recent
 		lruArr[set][replaced] = most;
 	}
 }
@@ -168,7 +169,7 @@ int main(int argc, char* argv[]) {
 
 						}
 						else {
-							//printf("Error in %d: least-recent not found\n", __FUNCTION__);
+							printf("Error in %d: least-recent not found\n", __FUNCTION__);
 							//return 0;
 						}
 					}
@@ -185,21 +186,7 @@ int main(int argc, char* argv[]) {
 		}
 
 	}
-	/*
-	for (int i = 0; i < 5; i++) {
-		for (int j = 0; j < assoc; j++) {
-			printf("%d ", lru[i][j]);
-		}
-		printf("\n");
-	}
-	printf("\n");
-	for (int i = 0; i < 5; i++) {
-		for (int j = 0; j < assoc; j++) {
-			printf("%d ", valid[i*assoc + j]);
-		}
-		printf("\n");
-	}
-	*/
+	
 	totalMiss = readMiss + writeMiss;
 	totalAccess = totalRead + totalWrite;
 	printf("%ld %f%%\t%d %f%%\t%d %f%%\n", totalMiss, (double(totalMiss) / totalAccess) * 100, readMiss, 100 * (double(readMiss) / totalRead), writeMiss, 100 * (double(writeMiss) / totalWrite));
