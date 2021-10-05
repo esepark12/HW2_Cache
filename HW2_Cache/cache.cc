@@ -25,7 +25,7 @@ void updateLRU(int** lruArr, int replaced, int most, int set, int numBlocks) {
 	else { 
 		// set hit/miss block as most-recent and decrement others
 		for (int i = 0; i < numBlocks; i++) {
-			if (lruArr[set][i] > 0) { // if not 0, decrement
+			if (lruArr[set][i] > 0) { // if not 0 or less, decrement
 				lruArr[set][i] -= 1;
 			}
 		}
@@ -80,14 +80,14 @@ int main(int argc, char* argv[]) {
 	long long int* cache = new long long int[numSets * assoc]; // Cache 2d array
 	memset(cache, -1, sizeof(long long int) * numSets * assoc); // initialize to -1
 	long long int* valid = new long long int[numSets * assoc]; // keeps track of valid and invalid blocks
-	memset(cache, 0, sizeof(long long int) * numSets * assoc);
+	memset(valid, 0, sizeof(long long int) * numSets * assoc); // initialize to 0
 	int** lru = new int* [numSets]; // keeps track of recently used blocks in a cache, 0: least recently used, lruMost: most recent
 	for (int i = 0; i < numSets; ++i) {
 		lru[i] = new int[assoc];
 	}
-	for (int i = 0; i < numSets; ++i) { // initialize to 0
+	for (int i = 0; i < numSets; ++i) { // initialize to -1: invalid
 		for (int j = 0; j < assoc; ++j) {
-			lru[i][j] = 0;
+			lru[i][j] = -1;
 		}
 	}
 	int lruMost = assoc - 1;
@@ -127,6 +127,9 @@ int main(int argc, char* argv[]) {
 					long long int* existInvalid = find(valid + index * assoc + 0, nextSetvalid, 0);
 					if (existInvalid != nextSetvalid) { // invalid exists
 						int dist = distance(valid + index * assoc + 0, existInvalid);
+						if (dist >= assoc) {
+							printf("Error: exceeds index");
+						}
 						cache[index * assoc + dist] = tag; // replace
 						existInvalid[0] = 1; // update valid
 					}
@@ -138,12 +141,15 @@ int main(int argc, char* argv[]) {
 				}
 				else { // use LRU policy
 					// First check for any invalid (empty) block
-					long long int* nextSetvalid = valid + index * assoc + assoc;
-					long long int* existInvalid = find(valid + index * assoc + 0, nextSetvalid, 0);
+					int* nextSetvalid = lru[index] + assoc;;
+					int* existInvalid = find(lru[index], nextSetvalid, -1);
 					if (existInvalid != nextSetvalid) {
-						int dist = distance(valid + index * assoc + 0, existInvalid);
+						int dist = distance(lru[index], existInvalid);
+						if (dist >= assoc && dist < 0) {
+							printf("Error: exceeds index");
+						}
 						cache[index * assoc + dist] = tag; // replace
-						existInvalid[0] = 1;
+						valid[index * assoc + dist] = 1; //existInvalid[0] = 1;
 						// Update lru
 						updateLRU(lru, dist, lruMost, index, assoc);
 					}
@@ -153,9 +159,13 @@ int main(int argc, char* argv[]) {
 						int* least = find(lru[index], nextSetbit, 0);
 						if (least != nextSetbit) { // found least-recent
 							int dist = distance(lru[index], least);
+							if (dist >= assoc && dist < 0) {
+								printf("Error: exceeds index");
+							}
 							cache[index * assoc + dist] = tag; // replace
 							// Update lru
 							updateLRU(lru, dist, lruMost, index, assoc);
+
 						}
 						else {
 							//printf("Error in %d: least-recent not found\n", __FUNCTION__);
@@ -166,13 +176,30 @@ int main(int argc, char* argv[]) {
 			}
 			else { // hit
 				int dist = distance(cache + index * assoc + 0, existBlock);
+				if (dist >= assoc && dist < 0) {
+					printf("Error: exceeds index");
+				}
 				// Update lru
 				updateLRU(lru, dist, lruMost, index, assoc);
 			}
 		}
 
 	}
-	
+	/*
+	for (int i = 0; i < 5; i++) {
+		for (int j = 0; j < assoc; j++) {
+			printf("%d ", lru[i][j]);
+		}
+		printf("\n");
+	}
+	printf("\n");
+	for (int i = 0; i < 5; i++) {
+		for (int j = 0; j < assoc; j++) {
+			printf("%d ", valid[i*assoc + j]);
+		}
+		printf("\n");
+	}
+	*/
 	totalMiss = readMiss + writeMiss;
 	totalAccess = totalRead + totalWrite;
 	printf("%ld %f%%\t%d %f%%\t%d %f%%\n", totalMiss, (double(totalMiss) / totalAccess) * 100, readMiss, 100 * (double(readMiss) / totalRead), writeMiss, 100 * (double(writeMiss) / totalWrite));
