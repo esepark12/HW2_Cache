@@ -22,7 +22,7 @@ void updateLRU(int** lruArr, int replaced, int most, int set, int numBlocks) {
 	if (lruArr[set][replaced] == most) { // if hit/miss occurs on most-recent block
 		// do nothing
 	}
-	else { 
+	else {
 		// set hit/miss block as most-recent and decrement others
 		for (int i = 0; i < numBlocks; i++) {
 			if (lruArr[set][i] > 0) { // if not 0 or less, decrement
@@ -49,7 +49,7 @@ long long int getAddress(string li) {
 
 	return address;
 }
-bool extract(long long int addr, int numsets, int bsize, long long int *t, long long int* ind, long long int* off) {
+bool extract(long long int addr, int numsets, int bsize, long long int* t, long long int* ind, long long int* off) {
 	/*
 	* Given an address, num of sets, block size
 	* Returns tag, index, offset of a block
@@ -66,12 +66,12 @@ bool extract(long long int addr, int numsets, int bsize, long long int *t, long 
 	return 0;
 }
 int main(int argc, char* argv[]) {
-	
+
 	int nk = atoi(argv[1]); // the capacity of the cache in kilobytes
 	int assoc = atoi(argv[2]); // the associativity of the cache
 	int blocksize = atoi(argv[3]); // the size of a single cache block in bytes
 	char repl = argv[4][0]; // the replacement policy
-	
+
 	//------------Initialize cache variables----------
 	long int totalMiss = 0; long int totalAccess = 0;
 	int readMiss = 0; int totalRead = 0;
@@ -203,6 +203,6 @@ int main(int argc, char* argv[]) {
 	totalMiss = readMiss + writeMiss;
 	totalAccess = totalRead + totalWrite;
 	printf("%ld %f%%\t%d %f%%\t%d %f%%\n", totalMiss, (double(totalMiss) / totalAccess) * 100, readMiss, 100 * (double(readMiss) / totalRead), writeMiss, 100 * (double(writeMiss) / totalWrite));
-	
+
 	return 0;
 }
