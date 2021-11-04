@@ -9,6 +9,7 @@ Date: 10/2/2021
 #include <string>
 #include <stdlib.h>
 #include <fstream>
+#include <iostream>
 //for linux
 #include <cmath> 
 #include <algorithm>
@@ -67,7 +68,23 @@ bool extract(long long int addr, int numsets, int bsize, long long int* t, long 
 	return 0;
 }
 int main(int argc, char* argv[]) {
+	//for linux testing---------------------
+	ofstream myfile;
+	myfile.open("data.txt");
 
+	string a;
+	string b;
+	while (std::cin >> a >> b) {
+		// something
+		myfile << a;
+		myfile << ' ';
+		myfile << b;
+		myfile << '\n';
+		//std::cout<< a;
+		//std::cout<< b;
+	}
+	myfile.close();
+	//------------------------------------------
 	int nk = atoi(argv[1]); // the capacity of the cache in kilobytes
 	int assoc = atoi(argv[2]); // the associativity of the cache
 	int blocksize = atoi(argv[3]); // the size of a single cache block in bytes
@@ -82,7 +99,7 @@ int main(int argc, char* argv[]) {
 	memset(cache, -1, sizeof(long long int) * numSets * assoc); // initialize to -1
 	long long int* valid = new long long int[numSets * assoc]; // keeps track of valid and invalid blocks
 	memset(valid, 0, sizeof(long long int) * numSets * assoc); // initialize to 0
-	int** lru = new int* [numSets]; // keeps track of recently used blocks in a cache, 0: least recently used, lruMost: most recent
+	int** lru = new int* [numSets]; // keeps track of recently accessed blocks in a cache, 0: least recent, lruMost: most recent
 	for (int i = 0; i < numSets; ++i) {
 		lru[i] = new int[assoc];
 	}
@@ -93,7 +110,8 @@ int main(int argc, char* argv[]) {
 	}
 	int lruMost = assoc - 1;
 	//------------Get File--------------
-	string filename = "429.mcf-184B.trace.txt";
+	//string filename = "429.mcf-184B.trace.txt";
+	string filename = "data.txt";
 	ifstream file(filename);
 	//------------------Access Addresses-------------------
 	string line;
@@ -128,8 +146,8 @@ int main(int argc, char* argv[]) {
 					long long int* existInvalid = find(valid + index * assoc + 0, nextSetvalid, 0);
 					if (existInvalid != nextSetvalid) { // invalid exists
 						int dist = distance(valid + index * assoc + 0, existInvalid);
-						if (dist >= assoc) {
-							printf("Error: exceeds index");
+						if (dist >= assoc && dist < 0) {
+							//printf("Error: exceeds index");
 						}
 						cache[index * assoc + dist] = tag; // replace
 						existInvalid[0] = 1; // update valid
@@ -147,10 +165,10 @@ int main(int argc, char* argv[]) {
 					if (existInvalid != nextSetvalid) {
 						int dist = distance(lru[index], existInvalid);
 						if (dist >= assoc && dist < 0) {
-							printf("Error: exceeds index");
+							//printf("Error: exceeds index");
 						}
 						cache[index * assoc + dist] = tag; // replace
-						valid[index * assoc + dist] = 1; //existInvalid[0] = 1;
+						//valid[index * assoc + dist] = 1; //existInvalid[0] = 1;
 						// Update lru
 						updateLRU(lru, dist, lruMost, index, assoc);
 					}
@@ -161,7 +179,7 @@ int main(int argc, char* argv[]) {
 						if (least != nextSetbit) { // found least-recent
 							int dist = distance(lru[index], least);
 							if (dist >= assoc && dist < 0) {
-								printf("Error: exceeds index");
+								//printf("Error: exceeds index");
 							}
 							cache[index * assoc + dist] = tag; // replace
 							// Update lru
@@ -169,7 +187,7 @@ int main(int argc, char* argv[]) {
 
 						}
 						else {
-							printf("Error in %d: least-recent not found\n", __FUNCTION__);
+							//printf("Error in %d: least-recent not found\n", __FUNCTION__);
 							//return 0;
 						}
 					}
@@ -178,7 +196,7 @@ int main(int argc, char* argv[]) {
 			else { // hit
 				int dist = distance(cache + index * assoc + 0, existBlock);
 				if (dist >= assoc && dist < 0) {
-					printf("Error: exceeds index");
+					//printf("Error: exceeds index");
 				}
 				// Update lru
 				updateLRU(lru, dist, lruMost, index, assoc);
